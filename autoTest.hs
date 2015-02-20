@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall                    #-}
 --{-# OPTIONS_GHC -fno-warn-unused-binds   #-}
-{-# OPTIONS_GHC -fno-warn-unused-imports #-}
+--{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 
 --import Data.Ord
 --import Data.Function
@@ -36,7 +36,7 @@ type ExpectedOutput = String
 type TestAtom = (TestName, TestInput, ExpectedOutput)
 
 data TestResult = RuntimeError String | Fail String ExpectedOutput | Pass
-    deriving (Eq,Show)
+    deriving (Show,Eq,Ord)
 
 -- | WARN: Not pure function.
 formatInStream :: String -> [TestAtom]
@@ -67,15 +67,22 @@ displayResult (i,testName,result) = "Test #" ++ show i ++ ": " ++
         Fail response expected ->
             "FAIL [" ++ testName ++ "]\n--    Got: " ++
                 show response ++ "\n-- Expect: " ++ show expected
-        RuntimeError errMsg ->
-            "ERROR [" ++ testName ++ "]\n-- Message: " ++ errMsg
+        RuntimeError _ -> "ERROR [" ++ testName ++ "]"
 
 displayConclusion :: [TestResult] -> String
 displayConclusion testResultS =
-    let overallPass = all (==Pass) testResultS
+    let overallResult = minimum testResultS
+        resultSummaryText = case overallResult of
+            Pass -> "PASS: "
+            Fail _ _ -> "FAIL: "
+            RuntimeError _ -> "ERROR: "
         numPass = length . filter (==Pass) $ testResultS
-    in (if overallPass then "PASS: " else "FAIL: ") ++
+    in case overallResult of
+            RuntimeError errMsg -> "-- First error message:\n" ++ errMsg ++ "\n"
+            _ -> ""
+        ++ resultSummaryText ++
             show numPass ++ " / " ++ show (length testResultS) ++ " cases passed."
+
 
 main :: IO ()
 main = do
