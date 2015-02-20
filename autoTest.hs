@@ -47,11 +47,14 @@ formatInStream rawIn =
         -- Then, split the TestName from input/output. Drop delimiter.
         -- split2 :: [(TestName, String)]
         split2 = map (second tail . span (/='\n')) split1
-        -- Third, split for OUTPUT keyword.
-        -- split3 :: [(TestName, [ExpectedInput, ExpectedOutput])]
-        split3 = map (second $ L.Split.splitOn "\nOUTPUT\n") split2
+        -- Third, filter for testname == empty or ends with '#'
+        -- split3 :: [(TestName, String)]
+        split3 = filter ((/='#') . last . ('#':) . fst) split2
+        -- Fourth, split for OUTPUT keyword.
+        -- split4 :: [(TestName, [ExpectedInput, ExpectedOutput])]
+        split4 = map (second $ L.Split.splitOn "\nOUTPUT\n") split3
         -- Finally, rearrange into tuple.
-    in map (\(a,[b,c]) -> (a,b,c)) split3
+    in map (\(a,[b,c]) -> (a,b,c)) split4
 
 runTest :: FilePath -> TestAtom -> IO TestResult
 runTest fileP (_,testIn,testOut) = do
