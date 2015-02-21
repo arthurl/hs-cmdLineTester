@@ -92,8 +92,19 @@ main :: IO ()
 main = do
     (testCompiler:testProgram:testCaseFile:_) <- System.Environment.getArgs
     testList <- formatInStream <$> readFile testCaseFile
-    result <- mapM (runTest testCompiler testProgram) testList
     let testNameS = map (\(a,_,_)->a) testList
-    mapM_ (putStrLn . displayResult) $ zip3 [(1::Int)..] testNameS result
+        -- resultIO :: [IO TestResult]
+        resultIO = map (runTest testCompiler testProgram) testList
+        -- formattedResultIO :: [IO (Int, TestName, TestResult)]
+        formattedResultIO = map f . zip3 [(1::Int)..] testNameS $ resultIO
+            where f (a,b,c) = c >>= (\x -> return (a,b,x))
+
+    -- Run tests lazily and save result.
+    testResultS <- mapM (\x -> do
+                xDone@(_,_,testResult) <- x
+                putStrLn . displayResult $ xDone
+                return testResult
+            ) formattedResultIO
+
     putStrLn ""
-    putStrLn $ displayConclusion result
+    putStrLn . displayConclusion $ testResultS
