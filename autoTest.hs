@@ -56,9 +56,10 @@ formatInStream rawIn =
         -- Finally, rearrange into tuple.
     in map (\(a,[b,c]) -> (a,b,c)) split4
 
-runTest :: FilePath -> TestAtom -> IO TestResult
-runTest fileP (_,testIn,testOut) = do
-    (rawExitCode,rawResult,rawError) <- P.readProcessWithExitCode "python" [fileP] testIn
+runTest :: FilePath -> FilePath -> TestAtom -> IO TestResult
+runTest testCompilerFP testProgramFP (_,testIn,testOut) = do
+    (rawExitCode,rawResult,rawError) <-
+        P.readProcessWithExitCode testCompilerFP [testProgramFP] testIn
     return (if rawExitCode /= ExitSuccess then RuntimeError rawError
                else
                  if rawResult == testOut then Pass else Fail rawResult testOut)
@@ -89,9 +90,9 @@ displayConclusion testResultS =
 
 main :: IO ()
 main = do
-    testName <- System.Environment.getArgs
-    testList <- formatInStream <$> readFile (head testName ++ ".test")
-    result <- mapM (runTest $ head testName) testList
+    (testCompiler:testProgram:testCaseFile:_) <- System.Environment.getArgs
+    testList <- formatInStream <$> readFile testCaseFile
+    result <- mapM (runTest testCompiler testProgram) testList
     let testNameS = map (\(a,_,_)->a) testList
     mapM_ (putStrLn . displayResult) $ zip3 [(1::Int)..] testNameS result
     putStrLn ""
