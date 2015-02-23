@@ -2,29 +2,22 @@
 --{-# OPTIONS_GHC -fno-warn-unused-binds   #-}
 --{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 
---import Data.Ord
 --import Data.Function
 --import Data.Monoid
 import Control.Applicative
 --import Control.Monad
 import Control.Arrow
---import qualified Control.Monad.State as ST
---import qualified Data.Char as C
---import Data.List
-import qualified Data.List.Split as L.Split
---import qualified Data.Set as Set
---import qualified Data.Map.Strict as Map
---import qualified Data.Vector as V
---import qualified Data.Vector.Unboxed as VU
---import qualified Data.Vector.Generic as VG
 --import qualified Data.Foldable as F
---import qualified Data.Maybe
 --import qualified Safe
 --import Control.DeepSeq
+--import Data.List
+--import qualified Data.Vector.Generic as VG
 
-import qualified System.Process as P
+import qualified Data.List.Split as L.Split (splitOn)
+import qualified System.Process as P (readProcessWithExitCode)
 import System.Exit (ExitCode(..))
 import qualified System.Environment (getArgs)
+
 
 -- | This script checkes the input programme against an output.
 --   Remember that the text inbetween INPUT/OUPUT is EXACTLY compared, so pay
@@ -34,8 +27,9 @@ type TestName = String
 type TestInput = String
 type ExpectedOutput = String
 type TestAtom = (TestName, TestInput, ExpectedOutput)
+type ActualOutput = String
 
-data TestResult = RuntimeError String | Fail String ExpectedOutput | Pass
+data TestResult = RuntimeError String | Fail ActualOutput ExpectedOutput | Pass
     deriving (Show,Eq,Ord)
 
 -- | WARN: Not pure function.
