@@ -1,0 +1,46 @@
+name:                  hs-cmdLineTester
+version:               0.1.0.0
+cabal-version:         >=1.10
+build-type:            Simple
+author:                Arthur Lee
+maintainer:            me@arthur.li
+extra-source-files:    README.md
+
+flag optimise
+  description:
+    Enable aggressive optimisations for the executable
+  default: False
+  manual: True
+
+flag warn-all
+  description:
+    Enable all GHC warnings. This can be quite noisy.
+  default: False
+  manual: True
+
+library
+  exposed-modules:     Tester
+  -- other-modules:
+  build-depends:       base >= 4.8 && < 5
+                     , process
+                     , split
+  hs-source-dirs:      src
+  ghc-options:         -Wall
+                       -funbox-strict-fields
+  default-language:    Haskell2010
+  if flag(warn-all)
+    ghc-options:       -fwarn-incomplete-uni-patterns
+                       -fwarn-incomplete-record-updates
+                       -fwarn-monomorphism-restriction
+                       -fwarn-missing-local-sigs
+                       -fwarn-identities
+
+executable hs-test
+  main-is:             hs-test.hs
+  build-depends:       hs-cmdLineTester
+                     , base >= 4.8 && < 4.9
+  hs-source-dirs:      app
+  ghc-options:         -Wall
+  default-language:    Haskell2010
+  if flag(optimise)
+    ghc-options:       -O2
