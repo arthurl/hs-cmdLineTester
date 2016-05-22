@@ -6,31 +6,53 @@ attention to the spaces/newlines.
 -}
 
 module Tester
-  ( -- * ...
-    formatInStream
-  , runTest
+  ( -- * Data types
+    -- ** Input types
+    TestName
+  , TestInput
+  , ExpectedOutput
+  , TestAtom
+    -- ** Output types
+  , ActualOutput
+  , TestResult(..)
+  , TestResultAtom
+
+    -- * Text formatting
+    -- ** Input formatting
+  , formatInStream
+    -- ** Output formatting
   , displayResult
   , displayConclusion
+    -- * Running tests
+  , runTest
   ) where
 
-import Control.Arrow
-import qualified Data.List.Split as L.Split (splitOn)
-import qualified System.Process as P (readProcessWithExitCode)
+import Control.Arrow (second)
 import System.Exit (ExitCode(..))
-import qualified System.Environment (getArgs)
+import qualified Data.List.Split as L.Split (splitOn)
+import qualified System.Process as P (shell, readCreateProcessWithExitCode)
 
+-- Input types
 type TestName = String
 type TestInput = String
 type ExpectedOutput = String
 type TestAtom = (TestName, TestInput, ExpectedOutput)
+
+-- Output types
 type ActualOutput = String
-
 data TestResult = RuntimeError String
+                    -- ^ Test program exited with error message.
                 | Fail ActualOutput ExpectedOutput
+                    -- ^ Test program exited successfully, but result was
+                    -- incorrect.
                 | Pass
+                    -- ^ All good.
   deriving (Show,Eq,Ord)
+type TestResultAtom = (TestName, TestResult)
 
--- | WARN: Not pure function.
+-- | Formats file input.
+--
+-- WARNING: Not pure function.
 formatInStream :: String -> [TestAtom]
 formatInStream rawIn =
   let -- First, split file for INPUT keyword.
@@ -48,16 +70,22 @@ formatInStream rawIn =
     -- Finally, rearrange into tuple.
   in map (\(a,[b,c]) -> (a,b,c)) split4
 
-runTest :: FilePath -> FilePath -> TestAtom -> IO TestResult
-runTest testCompilerFP testProgramFP (_,testIn,testOut) = do
-  (rawExitCode,rawResult,rawError) <-
-    P.readProcessWithExitCode testCompilerFP [testProgramFP] testIn
-  return (if rawExitCode /= ExitSuccess then RuntimeError rawError
-         else
-           if rawResult == testOut then Pass else Fail rawResult testOut)
+-- | Executes the given shell command, feeding the specified inputs to StdIn,
+-- then generating the results.
+runTest :: String -> TestAtom -> IO TestResultAtom
+runTest cmdStr (testName, testIn, testOut) = do
+  (rawExitCode, rawResult, rawError) <-
+        P.readCreateProcessWithExitCode (P.shell cmdStr) testIn
+  return $ ( testName
+    , case rawExitCode of
+        ExitSuccess | rawResult == testOut -> Pass
+                    | otherwise            -> Fail rawResult testOut
+        _                                  -> RuntimeError rawError
+    )
 
-displayResult :: (Int, TestName, TestResult) -> String
-displayResult (i,testName,result) = "Test #" ++ show i ++ ": " ++
+-- | Formats result for display.
+displayResult :: Int -> TestResultAtom -> String
+displayResult i (testName, result) = "Test #" ++ show i ++ ": " ++
   case result of
     Pass -> "PASS [" ++ testName ++ "]"
     Fail response expected ->
@@ -65,6 +93,7 @@ displayResult (i,testName,result) = "Test #" ++ show i ++ ": " ++
         show response ++ "\n-- Expect: " ++ show expected
     RuntimeError _ -> "ERROR [" ++ testName ++ "]"
 
+-- | Calculates and displays overall test results.
 displayConclusion :: [TestResult] -> String
 displayConclusion testResultS =
   let overallResult = minimum testResultS
@@ -77,25 +106,3 @@ displayConclusion testResultS =
     RuntimeError errMsg -> "-- First error message:\n" ++ errMsg ++ "\n"
     _ -> "" ++ resultSummaryText ++ show numPass
            ++ " / " ++ show (length testResultS) ++ " cases passed."
-
-
-main :: IO ()
-main = do
-  (testCompiler:testProgram:testCaseFile:_) <- System.Environment.getArgs
-  testList <- formatInStream <$> readFile testCaseFile
-  let testNameS = map (\(a,_,_)->a) testList
-      -- resultIO :: [IO TestResult]
-      resultIO = map (runTest testCompiler testProgram) testList
-      -- formattedResultIO :: [IO (Int, TestName, TestResult)]
-      formattedResultIO = map f . zip3 [(1::Int)..] testNameS $ resultIO
-        where f (a,b,c) = c >>= (\x -> return (a,b,x))
-
-  -- Run tests lazily and save result.
-  testResultS <- mapM (\x -> do
-      xDone@(_,_,testResult) <- x
-      putStrLn . displayResult $ xDone
-      return testResult
-    ) formattedResultIO
-
-  putStrLn ""
-  putStrLn . displayConclusion $ testResultS
