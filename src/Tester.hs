@@ -1,27 +1,23 @@
-{-# OPTIONS_GHC -Wall                    #-}
---{-# OPTIONS_GHC -fno-warn-unused-binds   #-}
---{-# OPTIONS_GHC -fno-warn-unused-imports #-}
+{- |
+This script checkes the input programme against an output.
 
---import Data.Function
---import Data.Monoid
-import Control.Applicative
---import Control.Monad
+Remember that the text in between INPUT/OUPUT is EXACTLY compared, so pay
+attention to the spaces/newlines.
+-}
+
+module Tester
+  ( -- * ...
+    formatInStream
+  , runTest
+  , displayResult
+  , displayConclusion
+  ) where
+
 import Control.Arrow
---import qualified Data.Foldable as F
---import qualified Safe
---import Control.DeepSeq
---import Data.List
---import qualified Data.Vector.Generic as VG
-
 import qualified Data.List.Split as L.Split (splitOn)
 import qualified System.Process as P (readProcessWithExitCode)
 import System.Exit (ExitCode(..))
 import qualified System.Environment (getArgs)
-
-
--- | This script checkes the input programme against an output.
---   Remember that the text inbetween INPUT/OUPUT is EXACTLY compared, so pay
---   attention to the spaces/newlines.
 
 type TestName = String
 type TestInput = String
